@@ -39,11 +39,37 @@ func ParseText(p *xpp.XMLPullParser) (string, error) {
 	result := text.InnerXML
 	result = strings.TrimSpace(result)
 
-	if strings.HasPrefix(result, "<![CDATA[") &&
-		strings.HasSuffix(result, "]]>") {
-		result = strings.TrimPrefix(result, "<![CDATA[")
-		result = strings.TrimSuffix(result, "]]>")
-		return result, nil
+	if strings.Contains(result, "<![CDATA[") {
+		var decodedStrings []string
+		for result != "" {
+			split := strings.SplitN(result, "<![CDATA[", 2)
+			if len(split) < 2 {
+				break
+			}
+			beforeCdata := split[0]
+
+			split = strings.SplitN(split[1], "]]>", 2)
+			if len(split) < 2 {
+				return "", errors.New("unexpected EOF in CDATA section")
+			}
+			cdata := split[0]
+			result = split[1]
+
+			// Decode everything before the opening CDATA tag
+			decoded, err := DecodeEntities(beforeCdata)
+			if err != nil {
+				return "", err
+			}
+			decodedStrings = append(decodedStrings, decoded)
+			// Don't decode cdata
+			decodedStrings = append(decodedStrings, cdata)
+		}
+		// Decode remaining stuff
+		result, err := DecodeEntities(result)
+		if err != nil {
+			return "", err
+		}
+		return strings.Join(decodedStrings, "") + result, nil
 	}
 
 	return DecodeEntities(result)
