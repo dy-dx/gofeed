@@ -29,6 +29,7 @@ func ParseText(p *xpp.XMLPullParser) (string, error) {
 	var text struct {
 		Type     string `xml:"type,attr"`
 		InnerXML string `xml:",innerxml"`
+		CharData string `xml:",chardata"`
 	}
 
 	err := p.DecodeElement(&text)
@@ -39,11 +40,8 @@ func ParseText(p *xpp.XMLPullParser) (string, error) {
 	result := text.InnerXML
 	result = strings.TrimSpace(result)
 
-	if strings.HasPrefix(result, "<![CDATA[") &&
-		strings.HasSuffix(result, "]]>") {
-		result = strings.TrimPrefix(result, "<![CDATA[")
-		result = strings.TrimSuffix(result, "]]>")
-		return result, nil
+	if strings.Contains(result, "<![CDATA[") {
+		return text.CharData, nil
 	}
 
 	return DecodeEntities(result)
